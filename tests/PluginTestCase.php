@@ -49,15 +49,15 @@ abstract class PluginTestCase extends Illuminate\Foundation\Testing\TestCase
     public function setUp()
     {
         /*
+         * Force reload of October singletons
+         */
+        PluginManager::forgetInstance();
+        UpdateManager::forgetInstance();
+        
+        /*
          * Create application instance
          */
         parent::setUp();
-
-        /*
-         * Rebind Laravel container in October Singletons
-         */
-        UpdateManager::instance()->bindContainerObjects();
-        PluginManager::instance()->bindContainerObjects();
 
         /*
          * Ensure system is up to date
@@ -149,6 +149,21 @@ abstract class PluginTestCase extends Illuminate\Foundation\Testing\TestCase
          * Execute the command
          */
         Artisan::call('plugin:refresh', ['name' => $code]);
+    }
+
+    /**
+     * Returns a plugin object from its code, useful for registering events, etc.
+     * @return PluginBase
+     */
+    protected function getPluginObject($code = null)
+    {
+        if ($code === null) {
+            $code = $this->guessPluginCodeFromTest();
+        }
+
+        if (isset($this->pluginTestCaseLoadedPlugins[$code])) {
+            return $this->pluginTestCaseLoadedPlugins[$code];
+        }
     }
 
     /**

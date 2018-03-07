@@ -13,6 +13,7 @@ use Backend\Classes\Skin;
  * Backend Helper
  *
  * @package october\backend
+ * @see \Backend\Facades\Backend
  * @author Alexey Bobkov, Samuel Georges
  */
 class Backend
@@ -83,6 +84,15 @@ class Backend
     }
 
     /**
+     * Proxy method for dateTime() using "date" format alias.
+     * @return string
+     */
+    public function date($dateTime, $options = [])
+    {
+        return $this->dateTime($dateTime, $options + ['formatAlias' => 'date']);
+    }
+
+    /**
      * Returns the HTML for a date formatted in the backend.
      * Supported for formatAlias:
      *   time             -> 6:28 AM
@@ -95,6 +105,7 @@ class Backend
      *   dateTimeMin      -> Apr 23, 2016 6:28 AM
      *   dateTimeLong     -> Saturday, April 23, 2016 6:28 AM
      *   dateTimeLongMin  -> Sat, Apr 23, 2016 6:29 AM
+     * @return string
      */
     public function dateTime($dateTime, $options = [])
     {
@@ -105,6 +116,7 @@ class Backend
             'jsFormat' => null,
             'timeTense' => false,
             'timeSince' => false,
+            'ignoreTimezone' => false,
         ], $options));
 
         $carbon = DateTimeHelper::makeCarbon($dateTime);
@@ -120,6 +132,10 @@ class Backend
             'datetime' => $carbon,
             'data-datetime-control' => 1,
         ];
+
+        if ($ignoreTimezone) {
+            $attributes['data-ignore-timezone'] = true;
+        }
 
         if ($timeTense) {
             $attributes['data-time-tense'] = 1;

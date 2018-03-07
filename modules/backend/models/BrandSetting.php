@@ -1,9 +1,12 @@
 <?php namespace Backend\Models;
 
+use App;
+use Url;
 use File;
 use Lang;
 use Model;
 use Cache;
+use Config;
 use Less_Parser;
 use Exception;
 
@@ -18,14 +21,25 @@ class BrandSetting extends Model
     use \System\Traits\ViewMaker;
     use \October\Rain\Database\Traits\Validation;
 
-    public $implement = ['System.Behaviors.SettingsModel'];
+    /**
+     * @var array Behaviors implemented by this model.
+     */
+    public $implement = [
+        \System\Behaviors\SettingsModel::class
+    ];
 
+    /**
+     * @var string Unique code
+     */
     public $settingsCode = 'backend_brand_settings';
 
+    /**
+     * @var mixed Settings form field defitions
+     */
     public $settingsFields = 'fields.yaml';
 
     public $attachOne = [
-        'logo' => ['System\Models\File']
+        'logo' => \System\Models\File::class
     ];
 
     const CACHE_KEY = 'backend::brand.custom_css';
@@ -46,16 +60,21 @@ class BrandSetting extends Model
         'app_tagline'  => 'required',
     ];
 
+    /**
+     * Initialize the seed data for this model. This only executes when the
+     * model is first created or reset to default.
+     * @return void
+     */
     public function initSettingsData()
     {
-        $this->app_name = Lang::get('system::lang.app.name');
-        $this->app_tagline = Lang::get('system::lang.app.tagline');
+        $config = App::make('config');
 
-        $this->primary_color = self::PRIMARY_COLOR;
-        $this->secondary_color = self::SECONDARY_COLOR;
-        $this->accent_color = self::ACCENT_COLOR;
-
-        $this->menu_mode = self::INLINE_MENU;
+        $this->app_name = $config->get('brand.appName', Lang::get('system::lang.app.name'));
+        $this->app_tagline = $config->get('brand.tagline', Lang::get('system::lang.app.tagline'));
+        $this->primary_color = $config->get('brand.primaryColor', self::PRIMARY_COLOR);
+        $this->secondary_color = $config->get('brand.secondaryColor', self::SECONDARY_COLOR);
+        $this->accent_color = $config->get('brand.accentColor', self::ACCENT_COLOR);
+        $this->menu_mode = $config->get('brand.menuMode', self::INLINE_MENU);
     }
 
     public function afterSave()
@@ -66,11 +85,12 @@ class BrandSetting extends Model
     public static function getLogo()
     {
         $settings = self::instance();
-        if (!$settings->logo) {
-            return null;
+
+        if ($settings->logo) {
+            return $settings->logo->getPath();
         }
 
-        return $settings->logo->getPath();
+        return self::getDefaultLogo() ?: null;
     }
 
     public static function renderCss()
@@ -93,22 +113,21 @@ class BrandSetting extends Model
     public static function compileCss()
     {
         $parser = new Less_Parser(['compress' => true]);
+        $basePath = base_path('modules/backend/models/brandsetting');
 
         $primaryColor = self::get('primary_color', self::PRIMARY_COLOR);
         $secondaryColor = self::get('secondary_color', self::PRIMARY_COLOR);
         $accentColor = self::get('accent_color', self::ACCENT_COLOR);
 
-        $vars = [
+        $parser->ModifyVars([
             'logo-image'      => "'".self::getLogo()."'",
             'brand-primary'   => $primaryColor,
             'brand-secondary' => $secondaryColor,
             'brand-accent'    => $accentColor,
-        ];
-
-        $parser->ModifyVars($vars);
+        ]);
 
         $parser->parse(
-            File::get(base_path().'/modules/backend/models/brandsetting/custom.less') .
+            File::get($basePath . '/custom.less') .
             self::get('custom_css')
         );
 
@@ -116,4 +135,25 @@ class BrandSetting extends Model
 
         return $css;
     }
+
+    //
+    // Base line configuration
+    //
+
+    public static function isBaseConfigured()
+    {
+        return !!Config::get('brand');
+    }
+
+    public static function getDefaultLogo()
+    {
+        $logoPath = File::symbolizePath(Config::get('brand.logoPath'));
+
+        if ($logoPath && File::exists($logoPath)) {
+            return Url::asset(File::localToPublic($logoPath));
+        }
+
+        return null;
+    }
+
 }

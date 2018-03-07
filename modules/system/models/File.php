@@ -1,7 +1,9 @@
 <?php namespace System\Models;
 
+use Url;
 use Config;
-use Request;
+use File as FileHelper;
+use Storage;
 use October\Rain\Database\Attach\File as FileBase;
 
 /**
@@ -32,18 +34,16 @@ class File extends FileBase
     {
         $uploadsPath = Config::get('cms.storage.uploads.path', '/storage/app/uploads');
 
-        if (!starts_with($uploadsPath, ['//', 'http://', 'https://'])) {
-            $uploadsPath = Request::getBasePath() . $uploadsPath;
-        }
-
         if ($this->isPublic()) {
-            return $uploadsPath . '/public/';
+            $uploadsPath .= '/public';
         }
         else {
-            return $uploadsPath . '/protected/';
+            $uploadsPath .= '/protected';
         }
+
+        return Url::asset($uploadsPath) . '/';
     }
-    
+
     /**
      * Define the internal storage path.
      */
@@ -57,5 +57,24 @@ class File extends FileBase
         else {
             return $uploadsFolder . '/protected/';
         }
+    }
+
+    /**
+     * Returns true if storage.uploads.disk in config/cms.php is "local".
+     * @return bool
+     */
+    protected function isLocalStorage()
+    {
+        return Config::get('cms.storage.uploads.disk') == 'local';
+    }
+
+    /**
+     * Copy the local file to Storage
+     * @return bool True on success, false on failure.
+     */
+    protected function copyLocalToStorage($localPath, $storagePath)
+    {
+        $disk = Storage::disk(Config::get('cms.storage.uploads.disk'));
+        return $disk->put($storagePath, FileHelper::get($localPath), ($this->isPublic()) ? 'public' : null);
     }
 }

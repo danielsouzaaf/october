@@ -1,20 +1,21 @@
 <?php namespace System\Behaviors;
 
 use App;
+use Artisan;
 use Cache;
+use Log;
+use Exception;
 use System\Classes\ModelBehavior;
 use ApplicationException;
 
 /**
  * Settings model extension
  *
- * Usage:
+ * Add this the model class definition:
  *
- * In the model class definition:
- *
- *   public $implement = ['System.Behaviors.SettingsModel'];
- *   public $settingsCode = 'author_plugin_code';
- *   public $settingsFields = 'fields.yaml';
+ *     public $implement = ['System.Behaviors.SettingsModel'];
+ *     public $settingsCode = 'author_plugin_code';
+ *     public $settingsFields = 'fields.yaml';
  *
  */
 class SettingsModel extends ModelBehavior
@@ -31,7 +32,7 @@ class SettingsModel extends ModelBehavior
     private static $instances = [];
 
     /**
-     * {@inheritDoc}
+     * @inheritDoc
      */
     protected $requiredProperties = ['settingsFields', 'settingsCode'];
 
@@ -47,11 +48,6 @@ class SettingsModel extends ModelBehavior
         $this->model->guard([]);
         $this->model->timestamps = false;
 
-        // Option A: (@todo Determine which is faster by benchmark)
-        // $relativePath = strtolower(str_replace('\\', '/', get_class($model)));
-        // $this->configPath = ['modules/' . $relativePath, 'plugins/' . $relativePath];
-
-        // Option B:
         $this->configPath = $this->guessConfigPathFrom($model);
 
         /*
@@ -100,6 +96,7 @@ class SettingsModel extends ModelBehavior
 
     /**
      * Checks if the model has been set up previously, intended as a static method
+     * @return bool
      */
     public function isConfigured()
     {
@@ -148,7 +145,7 @@ class SettingsModel extends ModelBehavior
             return $this->fieldValues[$key];
         }
 
-        return $default;
+        return array_get($this->fieldValues, $key, $default);
     }
 
     /**
@@ -202,12 +199,19 @@ class SettingsModel extends ModelBehavior
     }
 
     /**
-     * After the model is saved, clear the cached query entry.
+     * After the model is saved, clear the cached query entry
+     * and restart queue workers so they have the latest settings
      * @return void
      */
     public function afterModelSave()
     {
         Cache::forget($this->getCacheKey());
+
+        try {
+            Artisan::call('queue:restart');
+        } catch (Exception $e) {
+            Log::warning($e->getMessage());
+        }
     }
 
     /**

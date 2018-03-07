@@ -42,17 +42,22 @@ class TagList extends FormWidgetBase
      */
     public $nameFrom = 'name';
 
+    /**
+     * @var bool Use the key instead of value for saving and reading data.
+     */
+    public $useKey = false;
+
     //
     // Object properties
     //
 
     /**
-     * {@inheritDoc}
+     * @inheritDoc
      */
     protected $defaultAlias = 'taglist';
 
     /**
-     * {@inheritDoc}
+     * @inheritDoc
      */
     public function init()
     {
@@ -61,15 +66,18 @@ class TagList extends FormWidgetBase
             'customTags',
             'options',
             'mode',
+            'nameFrom',
+            'useKey',
         ]);
     }
 
     /**
-     * {@inheritDoc}
+     * @inheritDoc
      */
     public function render()
     {
         $this->prepareVars();
+
         return $this->makePartial('taglist');
     }
 
@@ -78,6 +86,7 @@ class TagList extends FormWidgetBase
      */
     public function prepareVars()
     {
+        $this->vars['useKey'] = $this->useKey;
         $this->vars['field'] = $this->formField;
         $this->vars['fieldOptions'] = $this->getFieldOptions();
         $this->vars['selectedValues'] = $this->getLoadValue();
@@ -85,7 +94,7 @@ class TagList extends FormWidgetBase
     }
 
     /**
-     * {@inheritDoc}
+     * @inheritDoc
      */
     public function getSaveValue($value)
     {
@@ -121,14 +130,14 @@ class TagList extends FormWidgetBase
 
         foreach ($newTags as $newTag) {
             $newModel = $relationModel::create([$this->nameFrom => $newTag]);
-            $existingTags[$newModel->id] = $newTag;
+            $existingTags[$newModel->getKey()] = $newTag;
         }
 
         return array_keys($existingTags);
     }
 
     /**
-     * {@inheritDoc}
+     * @inheritDoc
      */
     public function getLoadValue()
     {
